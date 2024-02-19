@@ -1,4 +1,5 @@
-import { OccupiedCell } from "./classes/cell.js";
+import { dir } from "console";
+import { Cell } from "./classes/cell.js";
 import { Game } from "./classes/game.js";
 import { Player } from "./classes/player.js";
 import { Room } from "./classes/room.js";
@@ -13,6 +14,7 @@ import {
   cellStatus,
   createGameInterface,
   messageInterface,
+  positionInterface,
   regInterfaceReq,
   regInterfaceRes,
   roomInterface,
@@ -205,8 +207,7 @@ export function attack(params: {
   const game = games.find((game) => game.gameId === gameId);
   if (!game) throw Error("game not found from attack");
   const turn: number = game.turn;
-  //const victimPlayer = turn == 0 ? 1 : 0;
-  //console.log(`LLLOOOOGGG: ${JSON.stringify(game.players[turn].ships[0])}`);
+
   const shipWithSuchCell: Ship | undefined = game.players[turn].ships.find(
     (ship) =>
       ship.occupiedCells.find(
@@ -216,7 +217,7 @@ export function attack(params: {
 
   function getCellStatus(): cellStatus {
     if (shipWithSuchCell) {
-      const suchCell: OccupiedCell = shipWithSuchCell.occupiedCells.find(
+      const suchCell: Cell = shipWithSuchCell.occupiedCells.find(
         (cell) => cell.position.x === x && cell.position.y === y
       )!;
       suchCell.damaged = true;
@@ -230,18 +231,127 @@ export function attack(params: {
 
   const gotCellStatus: cellStatus = getCellStatus();
   if (gotCellStatus === cellStatus.killed) {
+    const adjacentCells: Cell[] = [];
+    const vertical: boolean = shipWithSuchCell!.direction;
     for (let i = 0; i < shipWithSuchCell!.length; i++) {
-      const response: attackInterfaceRes = {
+      const occupiedPosition: positionInterface =
+        shipWithSuchCell!.occupiedCells[i].position;
+
+      enum direction {
+        up,
+        down,
+        left,
+        right,
+      }
+      const cellIsfirstShipCell: boolean = i === 0;
+      const cellIsLastShipCell: boolean = i === shipWithSuchCell!.length - 1;
+      const isSmallShip: boolean = shipWithSuchCell!.type == shipType.small;
+
+      function addAdditionalAdjacentCells(side: direction): void {
+        let position: positionInterface = Object.assign({}, occupiedPosition);
+        addAdjacentCell({ side: side, position: position });
+        switch (side) {
+          case direction.up: {
+            position.y++;
+            fillAjacentCellsArr(position);
+            break;
+          }
+          case direction.down: {
+            position.y--;
+            fillAjacentCellsArr(position);
+            break;
+          }
+          case direction.left: {
+            position.x--;
+            fillAjacentCellsArr(position);
+            break;
+          }
+          case direction.right: {
+            position.x++;
+            fillAjacentCellsArr(position);
+            break;
+          }
+        }
+      }
+
+      function addAdjacentCell(params: {
+        side: direction;
+        position: positionInterface;
+      }) {
+        let position: positionInterface = Object.assign({}, params.position);
+        switch (params.side) {
+          case direction.up: {
+            position.y++;
+            break;
+          }
+          case direction.down: {
+            position.y--;
+            break;
+          }
+          case direction.left: {
+            position.x--;
+            break;
+          }
+          case direction.right: {
+            position.x++;
+            break;
+          }
+        }
+        adjacentCells.push(
+          new Cell({
+            position: position,
+            damaged: false,
+          })
+        );
+      }
+
+      function fillAjacentCellsArr(position: positionInterface): void {
+        addAdjacentCell({
+          side: vertical ? direction.right : direction.down,
+          position: position,
+        });
+        addAdjacentCell({
+          side: vertical ? direction.left : direction.up,
+          position: position,
+        });
+      }
+
+      const beforeFirst: direction = vertical ? direction.down : direction.left;
+      const afterLast: direction = vertical ? direction.up : direction.right;
+
+      fillAjacentCellsArr(occupiedPosition);
+      if (isSmallShip) {
+        addAdditionalAdjacentCells(beforeFirst);
+        addAdditionalAdjacentCells(afterLast);
+      } else {
+        if (cellIsfirstShipCell) {
+          addAdditionalAdjacentCells(beforeFirst);
+        }
+        if (cellIsLastShipCell) {
+          addAdditionalAdjacentCells(afterLast);
+        }
+      }
+
+      const responseOccupied: attackInterfaceRes = {
         status: gotCellStatus,
-        position: {
-          x: shipWithSuchCell!.occupiedCells[i].position.x,
-          y: shipWithSuchCell!.occupiedCells[i].position.y,
-        },
+        position: occupiedPosition,
       };
       sendResponse({
         ws: params.ws,
         type: messageTypes.ATTACK,
-        data: response,
+        data: responseOccupied,
+      });
+    }
+
+    for (let i = 0; i < adjacentCells.length; i++) {
+      const responseAdjacent: attackInterfaceRes = {
+        status: cellStatus.miss,
+        position: adjacentCells[i].position,
+      };
+      sendResponse({
+        ws: params.ws,
+        type: messageTypes.ATTACK,
+        data: responseAdjacent,
       });
     }
   } else {

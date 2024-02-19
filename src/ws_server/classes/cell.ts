@@ -1,6 +1,6 @@
 import { cellStatus, positionInterface } from "../interfaces";
 
-export class OccupiedCell {
+export class Cell {
   position: positionInterface;
   damaged: boolean;
 

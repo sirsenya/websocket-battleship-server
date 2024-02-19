@@ -1,12 +1,12 @@
 import { positionInterface } from "../interfaces";
-import { OccupiedCell } from "./cell.js";
+import { Cell } from "./cell.js";
 
 export class Ship {
   position: positionInterface;
   direction: boolean;
   length: number;
   type: shipType;
-  occupiedCells: OccupiedCell[];
+  occupiedCells: Cell[];
 
   constructor(params: {
     position: positionInterface;
@@ -33,13 +33,13 @@ function occupiedCells(params: {
   position: positionInterface;
   direction: boolean;
   length: number;
-}): OccupiedCell[] {
-  const occupiedCells: OccupiedCell[] = [
-    new OccupiedCell({ position: params.position, damaged: false }),
+}): Cell[] {
+  const occupiedCells: Cell[] = [
+    new Cell({ position: params.position, damaged: false }),
   ];
   for (let i = 1; i < params.length; i++) {
     occupiedCells.push(
-      new OccupiedCell({
+      new Cell({
         position: {
           x: params.direction ? params.position.x : params.position.x + i,
           y: params.direction ? params.position.y + i : params.position.y,
