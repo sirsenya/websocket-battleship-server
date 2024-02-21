@@ -1,13 +1,6 @@
 import { Ship } from "./classes/ship";
 import { User } from "./classes/user";
 
-export interface regInterfaceRes {
-  name: string;
-  index: number;
-  error: boolean;
-  errorText: string;
-}
-
 export interface updateWinnersInterface {
   name: string;
   wins: number;
@@ -15,10 +8,10 @@ export interface updateWinnersInterface {
 
 export interface roomInterface {
   roomId: number;
-  roomUsers: User[];
+  roomUsers: userInterface[];
 }
 
-export interface regInterfaceReq {
+export interface userInterface {
   name: string;
   index: number;
 }
@@ -50,12 +43,6 @@ export interface addShipsInterface {
   indexPlayer: number;
 }
 
-export interface startGameInterface {
-  ships: Ship[];
-  /* id of the player in the current game session, who have sent his ships */
-  currentPlayerIndex: number;
-}
-
 export interface positionInterface {
   x: number;
   y: number;
@@ -65,15 +52,22 @@ export interface turnInterface {
   currentPlayer: number /* id of the player in the current game session */;
 }
 
+export interface randomAttackInterfaceReq {
+  gameId: number;
+  indexPlayer: number;
+}
+
 export interface attackInterfaceReq {
   gameId: number;
   x: number;
   y: number;
+  indexPlayer: number /* id of the player in the current game session */;
 }
 
 export interface attackInterfaceRes {
   position: positionInterface;
   status: cellStatus;
+  currentPlayer: number;
 }
 
 export enum cellStatus {
