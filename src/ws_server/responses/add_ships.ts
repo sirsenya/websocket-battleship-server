@@ -1,11 +1,12 @@
 import { Player } from "../classes/player.js";
-import { Ship, shipType } from "../classes/ship.js";
+import { Ship, getOccupiedCells, shipType } from "../classes/ship.js";
 import { games } from "../db.js";
 import {
   messageInterface,
   addShipsInterface,
   positionInterface,
 } from "../interfaces.js";
+import { getAdjacentCells, positionToString } from "./attack.js";
 import { generateRandomPosition } from "./random_attack.js";
 import { startGame } from "./start_game.js";
 
@@ -19,7 +20,7 @@ export function addShips(params: {
   );
   const player = new Player({
     indexPlayer: indexPlayer,
-    ships: ships.map((ship) => new Ship({ ...ship })),
+    ships: ships.map((ship) => new Ship({ ...ship })), // addRandomShips(),
     gameId: gameId,
     ws: params.ws,
   });
@@ -31,69 +32,135 @@ export function addShips(params: {
   }
 }
 
-export function addRandomShips() {
-  //
-  const randomShips: Ship[] = [];
+export function addRandomShips(): Ship[] {
+  function getLShipLength(type: shipType): number {
+    switch (type) {
+      case shipType.huge:
+        return 4;
+      case shipType.large:
+        return 3;
+      case shipType.medium:
+        return 2;
+      case shipType.small:
+        return 1;
+    }
+  }
   const availableShips: shipType[] = new Array(10)
     .fill(shipType.huge, 0, 1)
     .fill(shipType.large, 1, 3)
     .fill(shipType.medium, 3, 6)
     .fill(shipType.small, 6, 10);
 
-  // const availableCells: positionInterface[] = [];
+  const randomShips: Ship[] = [];
 
-  // for (let x = 0; x < 10; x++) {
-  //   for (let y = 0; y < 10; y++) {
-  //     availableCells.push({ x, y });
-  //   }
-  // }
   const occupiedPositions: positionInterface[] = [];
+  const adjacentPositions: positionInterface[] = [];
 
   for (let i = 0; i < availableShips.length; i++) {
     const type: shipType = availableShips[i];
-    const position: positionInterface = { x: 0, y: 0 };
-    const direction: boolean =
-      Math.floor(Math.random() * 10) > 4 ? true : false;
-    function getLength(): number {
-      switch (type) {
-        case shipType.huge:
-          return 4;
-        case shipType.large:
-          return 3;
-        case shipType.medium:
-          return 2;
-        case shipType.small:
-          return 1;
-      }
-    }
-    const length: number = getLength();
+    const vertical: boolean = Math.floor(Math.random() * 10) > 4 ? true : false;
+
+    const length: number = getLShipLength(type);
     const cellsInRow = 10;
 
-    function getExcludedPositions(): positionInterface[] {
-      const excludedPositions: positionInterface[] = [];
+    function getUnfitSizePositions(): positionInterface[] {
+      const unfitSizePositions: positionInterface[] = [];
 
-      for (let i = 0; i < cellsInRow - length; i++) {
+      for (let i = cellsInRow; i > cellsInRow - length + 1; i--) {
         for (let j = 0; j < cellsInRow; j++) {
-          excludedPositions.push({
-            x: direction ? j : i,
-            y: direction ? i : j,
+          unfitSizePositions.push({
+            y: vertical ? i : j,
+            x: vertical ? j : i,
           });
         }
       }
-      return excludedPositions;
+      return unfitSizePositions;
+    }
+    const unfitSizePositions: positionInterface[] = getUnfitSizePositions();
+
+    // console.log(
+    //   `unfitSizePositions ${
+    //     unfitSizePositions.map((position) => positionToString(position)).length
+    //   }`
+    // );
+    // console.log(
+    //   `occupiedPositions ${
+    //     occupiedPositions.map((position) => positionToString(position)).length
+    //   }`
+    // );
+    // console.log(
+    //   `adjacentPositions ${
+    //     adjacentPositions.map((position) => positionToString(position)).length
+    //   }`
+    // );
+
+    const excludedPositionsStrings: string[] = [
+      ...unfitSizePositions,
+      ...occupiedPositions,
+      ...adjacentPositions,
+    ].map((position) => positionToString(position));
+    // console.log(`excluded: ${excludedPositionsStrings}`);
+
+    const uniqueExcludedPositionsString: string[] = Array.from(
+      new Set(excludedPositionsStrings).keys()
+    ).filter((string) => !string.includes("-"));
+    const uniqueExcludedPositions: positionInterface[] =
+      uniqueExcludedPositionsString.map((string) => ({
+        x: Number(string.charAt(0)),
+        y: Number(string.charAt(1)),
+      }));
+
+    function validateRandomPosition(params: {
+      hash: positionInterface[];
+    }): positionInterface {
+      const hash: positionInterface[] = params.hash;
+
+      const position: positionInterface = generateRandomPosition({
+        excludedPositions: [...uniqueExcludedPositions, ...hash],
+      });
+
+      const occupiedPositions: string[] = getOccupiedCells({
+        position: position,
+        direction: vertical,
+        length: length,
+      }).map((cell) => positionToString(cell.position));
+
+      for (let i = 0; i < occupiedPositions.length; i++) {
+        console.log(`occupiedPositions.length = ${occupiedPositions.length}`);
+        if (uniqueExcludedPositionsString.includes(occupiedPositions[i])) {
+          hash.push(position);
+          return validateRandomPosition({ hash: hash });
+        }
+      }
+      return position;
     }
 
-    generateRandomPosition({ excludedPositions: getExcludedPositions() });
+    const position: positionInterface = validateRandomPosition({
+      hash: [],
+    });
 
-    randomShips.push(
-      new Ship({
-        direction: direction,
-        type: type,
-        length: length,
+    const ship: Ship = new Ship({
+      direction: vertical,
+      type: type,
+      length: length,
+      position: position,
+    });
+
+    randomShips.push(ship);
+    occupiedPositions.push(
+      ...getOccupiedCells({
         position: position,
-      })
+        direction: vertical,
+        length: length,
+      }).map((cell) => cell.position)
+    );
+    adjacentPositions.push(
+      ...getAdjacentCells({
+        ship: ship,
+      }).map((cell) => cell.position)
     );
   }
 
-  console.log(availableShips);
+  console.log(randomShips);
+  return randomShips;
 }

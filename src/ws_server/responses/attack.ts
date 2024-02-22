@@ -19,7 +19,7 @@ export function positionToString(position: positionInterface): string {
 export function attack(params: attackInterfaceReq): void {
   const game = games.find((game) => game.gameId === params.gameId);
   if (!game) throw Error("game not found from attack");
-  if (game.turn == params.indexPlayer) {
+  if (game.turn !== params.indexPlayer) {
     return;
   }
 
@@ -62,90 +62,11 @@ export function attack(params: attackInterfaceReq): void {
   const gotCellStatus: cellStatus = getCellStatus();
 
   if (gotCellStatus === cellStatus.killed) {
-    const adjacentCells: Cell[] = [];
     const vertical: boolean = shipWithSuchCell!.direction;
+
     for (let i = 0; i < shipWithSuchCell!.length; i++) {
       const occupiedPosition: positionInterface =
         shipWithSuchCell!.occupiedCells[i].position;
-
-      enum direction {
-        up,
-        down,
-        left,
-        right,
-      }
-      const cellIsfirstShipCell: boolean = i === 0;
-      const cellIsLastShipCell: boolean = i === shipWithSuchCell!.length - 1;
-      const isSmallShip: boolean = shipWithSuchCell!.type == shipType.small;
-
-      function calculatePositionOfAdjacentCell(params: {
-        side: direction;
-        position: positionInterface;
-      }): positionInterface {
-        let position: positionInterface = Object.assign({}, params.position);
-        switch (params.side) {
-          case direction.up: {
-            position.y++;
-            break;
-          }
-          case direction.down: {
-            position.y--;
-            break;
-          }
-          case direction.left: {
-            position.x--;
-            break;
-          }
-          case direction.right: {
-            position.x++;
-            break;
-          }
-        }
-        return position;
-      }
-
-      function addAdditionalAdjacentCells(side: direction): void {
-        let position: positionInterface = Object.assign({}, occupiedPosition);
-        addAdjacentCell({ side: side, position: position });
-        fillAdjacentCellsArr(
-          calculatePositionOfAdjacentCell({ side: side, position: position })
-        );
-      }
-
-      function addAdjacentCell(params: {
-        side: direction;
-        position: positionInterface;
-      }) {
-        adjacentCells.push(
-          new Cell({
-            position: calculatePositionOfAdjacentCell(params),
-            damaged: false,
-          })
-        );
-      }
-
-      function fillAdjacentCellsArr(position: positionInterface): void {
-        addAdjacentCell({
-          side: vertical ? direction.right : direction.down,
-          position: position,
-        });
-        addAdjacentCell({
-          side: vertical ? direction.left : direction.up,
-          position: position,
-        });
-      }
-
-      const beforeFirst: direction = vertical ? direction.down : direction.left;
-      const afterLast: direction = vertical ? direction.up : direction.right;
-
-      fillAdjacentCellsArr(occupiedPosition);
-      if (isSmallShip || cellIsfirstShipCell) {
-        addAdditionalAdjacentCells(beforeFirst);
-      }
-      if (isSmallShip || cellIsLastShipCell) {
-        addAdditionalAdjacentCells(afterLast);
-      }
-
       const responseOccupied: attackInterfaceRes = {
         status: gotCellStatus,
         position: occupiedPosition,
@@ -153,8 +74,11 @@ export function attack(params: attackInterfaceReq): void {
       };
       sendToPlayers(responseOccupied);
       attacker.shotCells.set(positionToString(occupiedPosition), gotCellStatus);
-      console.log(attacker.shotCells.entries());
     }
+
+    const adjacentCells: Cell[] = getAdjacentCells({
+      ship: shipWithSuchCell!,
+    });
 
     for (let i = 0; i < adjacentCells.length; i++) {
       const position: positionInterface = adjacentCells[i].position;
@@ -166,7 +90,7 @@ export function attack(params: attackInterfaceReq): void {
       };
       sendToPlayers(responseAdjacent);
       attacker.shotCells.set(positionToString(position), status);
-      console.log(attacker.shotCells.entries());
+      //console.log(attacker.shotCells.entries());
     }
   } else {
     const position: positionInterface = {
@@ -181,7 +105,7 @@ export function attack(params: attackInterfaceReq): void {
 
     sendToPlayers(response);
     attacker.shotCells.set(positionToString(position), gotCellStatus);
-    console.log(attacker.shotCells.entries());
+    //console.log(attacker.shotCells.entries());
 
     if (gotCellStatus === cellStatus.miss) {
       const changedTurn = game.turn === 0 ? 1 : 0;
@@ -194,4 +118,112 @@ export function attack(params: attackInterfaceReq): void {
       );
     }
   }
+}
+
+export function getAdjacentCells(params: { ship: Ship }): Cell[] {
+  const vertical = params.ship.direction;
+  const adjacentCells: Cell[] = [];
+  function calculatePositionOfAdjacentCell(params: {
+    side: direction;
+    position: positionInterface;
+  }): positionInterface {
+    let position: positionInterface = Object.assign({}, params.position);
+    switch (params.side) {
+      case direction.up: {
+        position.y++;
+        break;
+      }
+      case direction.down: {
+        position.y--;
+        break;
+      }
+      case direction.left: {
+        position.x--;
+        break;
+      }
+      case direction.right: {
+        position.x++;
+        break;
+      }
+    }
+    return position;
+  }
+
+  function addAdjacentCell(params: {
+    side: direction;
+    position: positionInterface;
+  }) {
+    const position = calculatePositionOfAdjacentCell(params);
+
+    function validatPosition(position: positionInterface): boolean {
+      return !(
+        position.x < 0 ||
+        position.x > 9 ||
+        position.y < 0 ||
+        position.y > 9
+      );
+    }
+
+    if (validatPosition(position)) {
+      adjacentCells.push(
+        new Cell({
+          position: position,
+          damaged: false,
+        })
+      );
+    }
+  }
+
+  function fillAdjacentCellsArr(position: positionInterface): void {
+    addAdjacentCell({
+      side: vertical ? direction.right : direction.down,
+      position: position,
+    });
+    addAdjacentCell({
+      side: vertical ? direction.left : direction.up,
+      position: position,
+    });
+  }
+
+  function addAdditionalAdjacentCells(data: {
+    side: direction;
+    occupiedPosition: positionInterface;
+  }): void {
+    let position: positionInterface = Object.assign({}, data.occupiedPosition);
+    addAdjacentCell({ side: data.side, position: position });
+    fillAdjacentCellsArr(
+      calculatePositionOfAdjacentCell({ side: data.side, position: position })
+    );
+  }
+  const beforeFirst: direction = vertical ? direction.down : direction.left;
+  const afterLast: direction = vertical ? direction.up : direction.right;
+
+  for (let i = 0; i < params.ship.length; i++) {
+    const cellIsfirstShipCell: boolean = i === 0;
+    const cellIsLastShipCell: boolean = i === params.ship.length - 1;
+    const occupiedPosition: positionInterface =
+      params.ship.occupiedCells[i].position;
+
+    fillAdjacentCellsArr(occupiedPosition);
+    if (cellIsfirstShipCell) {
+      addAdditionalAdjacentCells({
+        side: beforeFirst,
+        occupiedPosition: occupiedPosition,
+      });
+    }
+    if (cellIsLastShipCell) {
+      addAdditionalAdjacentCells({
+        side: afterLast,
+        occupiedPosition: occupiedPosition,
+      });
+    }
+  }
+  return adjacentCells;
+}
+
+export enum direction {
+  up,
+  down,
+  left,
+  right,
 }

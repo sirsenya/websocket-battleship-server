@@ -20,38 +20,50 @@ export function randomAttack(params: randomAttackInterfaceReq): void {
       y: Number(string.charAt(1)),
     }));
 
-  const randoPosition = generateRandomPosition({
+  const randomPosition = generateRandomPosition({
     excludedPositions: allShotsMade,
   });
 
-  attack({ x: randoPosition.x, y: randoPosition.y, ...params });
+  attack({ x: randomPosition.x, y: randomPosition.y, ...params });
+  // console.log(`attacker shots: ${attacker.shotCells}`);
 }
 
 export function generateRandomPosition(params: {
   excludedPositions: positionInterface[];
 }): positionInterface {
+  // console.log(params.excludedPositions);
   const cellsInRow: number = 10;
-  let x: number = Math.floor(Math.random());
+  let x: number = Math.floor(Math.random() * cellsInRow);
+  //  console.log(`first x: ${x}`);
   let y: number = 0;
 
   function validateX() {
     const ysShotOnThisX: number[] = params.excludedPositions
       .filter((shotPosition) => shotPosition.x === x)
       .map((shotPosition) => shotPosition.y);
+
+    // console.log(`YS shot on this x: ${ysShotOnThisX}`);
     const lineIsShot: boolean = ysShotOnThisX.length === cellsInRow;
 
     if (lineIsShot) {
-      x === cellsInRow - 1 ? (x = 0) : x++;
+      x >= cellsInRow - 1 ? (x = 0) : x++;
       validateX();
     } else {
       const unshotYs: number[] = [];
       for (let i = 0; i < cellsInRow; i++) {
-        if (!ysShotOnThisX.includes(i)) unshotYs.push(i);
+        if (!ysShotOnThisX.includes(i)) {
+          unshotYs.push(i);
+        }
       }
       const index: number = Math.floor(Math.random() * unshotYs.length);
+      // console.log(`index: ${index}`);
+      //  console.log(`unshotYs: ${unshotYs}`);
+
       y = unshotYs[index];
+      //  console.log(`y: ${y}`);
     }
   }
   validateX();
+  // console.log(`result: ${x}${y}`);
   return { x, y };
 }
