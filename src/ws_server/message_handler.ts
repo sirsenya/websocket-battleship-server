@@ -31,7 +31,7 @@ export function messageHandler(ws: WebSocket, req: IncomingMessage) {
         return userWithThisWs;
       }
     }
-
+    //  addRandomShips();
     switch (type) {
       case messageTypes.REG: {
         register({ message: message, ws: ws });
@@ -65,6 +65,12 @@ export function messageHandler(ws: WebSocket, req: IncomingMessage) {
       case messageTypes.ATTACK: {
         const attackReq: attackInterfaceReq = JSON.parse(message.data);
         attack(attackReq);
+
+        // const randomAttackReq: randomAttackInterfaceReq = {
+        //   indexPlayer: attackReq.indexPlayer,
+        //   gameId: attackReq.gameId,
+        // };
+        // randomAttack(randomAttackReq);
         break;
       }
       case messageTypes.RANDOM_ATTACK: {

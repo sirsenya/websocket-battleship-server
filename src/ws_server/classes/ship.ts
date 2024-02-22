@@ -18,7 +18,7 @@ export class Ship {
     this.direction = params.direction;
     this.length = params.length;
     this.type = params.type;
-    this.occupiedCells = occupiedCells(params);
+    this.occupiedCells = getOccupiedCells(params);
   }
 }
 
@@ -29,7 +29,7 @@ export enum shipType {
   huge = "huge",
 }
 
-function occupiedCells(params: {
+export function getOccupiedCells(params: {
   position: positionInterface;
   direction: boolean;
   length: number;
@@ -37,6 +37,7 @@ function occupiedCells(params: {
   const occupiedCells: Cell[] = [
     new Cell({ position: params.position, damaged: false }),
   ];
+
   for (let i = 1; i < params.length; i++) {
     occupiedCells.push(
       new Cell({
