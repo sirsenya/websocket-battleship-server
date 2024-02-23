@@ -1,5 +1,6 @@
 import { Ship } from "./classes/ship";
 import { User } from "./classes/user";
+import { addUserToRoom } from "./responses/add_user_to_room";
 
 export interface updateWinnersInterface {
   name: string;
@@ -74,4 +75,8 @@ export enum cellStatus {
   miss = "miss",
   killed = "killed",
   shot = "shot",
+}
+
+export interface finishInterface {
+  winPlayer: number;
 }

@@ -6,7 +6,7 @@ export class Player {
   ships: Ship[];
   gameId: number;
   ws: WebSocket;
-  //{"x5y3": cellStatus.shot}
+  //{"53": cellStatus.shot} is x 5 , y 3
   shotCells: Map<string, cellStatus>;
 
   constructor(params: {
