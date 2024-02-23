@@ -1,34 +1,31 @@
 import { Player } from "../classes/player.js";
 import { Ship, getOccupiedCells, shipType } from "../classes/ship.js";
-import { games } from "../db.js";
-import {
-  messageInterface,
-  addShipsInterface,
-  positionInterface,
-} from "../interfaces.js";
-import { getAdjacentCells, positionToString } from "./attack.js";
-import { generateRandomPosition } from "./random_attack.js";
+import { games, users } from "../db.js";
+import { positionInterface } from "../interfaces.js";
+import { positionToString } from "./attack.js";
+import { getAdjacentCells } from "./get_adjacent_cells.js";
+import { generateRandomPosition, stringsToPositions } from "./random_attack.js";
 import { startGame } from "./start_game.js";
 
 export function addShips(params: {
-  message: messageInterface;
+  indexPlayer: number;
   ws: WebSocket;
   gameId: number;
+  ships: Ship[];
 }): void {
-  const { gameId, ships, indexPlayer }: addShipsInterface = JSON.parse(
-    params.message.data
-  );
   const player = new Player({
-    indexPlayer: indexPlayer,
-    ships: ships.map((ship) => new Ship({ ...ship })), // addRandomShips(),
-    gameId: gameId,
+    indexPlayer: params.indexPlayer,
+    ships: params.ships.map((ship) => new Ship({ ...ship })), // addRandomShips(),
+    gameId: params.gameId,
     ws: params.ws,
   });
-  games[params.gameId].players.push(player);
-  if (games[params.gameId].players.length === 2) {
-    games[params.gameId].players.forEach((player) =>
-      startGame({ player: player, game: games[params.gameId] })
-    );
+  const game = games[params.gameId];
+  const players: Player[] = game.players;
+  players.push(player);
+  if (players.length === 2) {
+    const turn: number = users[0].index;
+    game.turn = turn;
+    players.forEach((player) => startGame({ player: player, game: game }));
   }
 }
 
@@ -103,12 +100,10 @@ export function addRandomShips(): Ship[] {
 
     const uniqueExcludedPositionsString: string[] = Array.from(
       new Set(excludedPositionsStrings).keys()
-    ).filter((string) => !string.includes("-"));
-    const uniqueExcludedPositions: positionInterface[] =
-      uniqueExcludedPositionsString.map((string) => ({
-        x: Number(string.charAt(0)),
-        y: Number(string.charAt(1)),
-      }));
+    );
+    const uniqueExcludedPositions: positionInterface[] = stringsToPositions(
+      uniqueExcludedPositionsString
+    );
 
     function validateRandomPosition(params: {
       hash: positionInterface[];
@@ -126,7 +121,7 @@ export function addRandomShips(): Ship[] {
       }).map((cell) => positionToString(cell.position));
 
       for (let i = 0; i < occupiedPositions.length; i++) {
-        console.log(`occupiedPositions.length = ${occupiedPositions.length}`);
+        // console.log(`occupiedPositions.length = ${occupiedPositions.length}`);
         if (uniqueExcludedPositionsString.includes(occupiedPositions[i])) {
           hash.push(position);
           return validateRandomPosition({ hash: hash });
@@ -160,7 +155,5 @@ export function addRandomShips(): Ship[] {
       }).map((cell) => cell.position)
     );
   }
-
-  console.log(randomShips);
   return randomShips;
 }

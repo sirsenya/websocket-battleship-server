@@ -10,20 +10,26 @@ export function register(params: {
   ws: WebSocket;
 }): void {
   const data: regInterfaceReq = JSON.parse(params.message.data);
+
   const regData: regInterfaceRes = {
     ...data,
-    error: false,
-    errorText: "error text",
+    error: true,
+    errorText: "name is occupied",
   };
-  addUserToDB({
-    user: new User({
-      name: data.name,
-      index: users.length,
-      wins: 0,
+
+  if (!users.find((user) => user.name === data.name)) {
+    (regData.error = false), (regData.errorText = "no error");
+    addUserToDB({
+      user: new User({
+        name: data.name,
+        index: users.length,
+        wins: 0,
+        ws: params.ws,
+      }),
       ws: params.ws,
-    }),
-    ws: params.ws,
-  });
+    });
+  }
+
   sendResponse({ ws: params.ws, type: messageTypes.REG, data: regData });
   updateRoomGlobally();
 }

@@ -7,8 +7,8 @@ import { sendResponse } from "./send_response.js";
 
 export function createGame(params: {
   ws: WebSocket;
-  gameId: number;
   idPlayer: number;
+  gameId: number;
 }): void {
   games.push(
     new Game({
@@ -17,9 +17,9 @@ export function createGame(params: {
       turn: 0,
     })
   );
-  console.log(params.idPlayer);
+  //console.log(params.idPlayer);
   const response: createGameInterface = {
-    idGame: 0,
+    idGame: params.gameId,
     idPlayer: params.idPlayer,
   };
 

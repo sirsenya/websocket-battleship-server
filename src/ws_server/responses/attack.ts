@@ -1,16 +1,20 @@
 import { Cell } from "../classes/cell.js";
 import { Player } from "../classes/player.js";
-import { Ship, shipType } from "../classes/ship.js";
-import { games } from "../db.js";
+import { Ship } from "../classes/ship.js";
+import { games, users } from "../db.js";
 import {
   attackInterfaceReq,
   cellStatus,
   positionInterface,
   attackInterfaceRes,
+  finishInterface,
 } from "../interfaces.js";
 import { messageTypes } from "../message_handler.js";
+import { getAdjacentCells } from "./get_adjacent_cells.js";
+import { randomAttack } from "./random_attack.js";
 import { sendResponse } from "./send_response.js";
 import { setTurn } from "./turn.js";
+import { updateWinners } from "./update_winners.js";
 
 export function positionToString(position: positionInterface): string {
   return `${position.x}${position.y}`;
@@ -19,16 +23,20 @@ export function positionToString(position: positionInterface): string {
 export function attack(params: attackInterfaceReq): void {
   const game = games.find((game) => game.gameId === params.gameId);
   if (!game) throw Error("game not found from attack");
-  if (game.turn !== params.indexPlayer) {
-    return;
-  }
-
   const enemy: Player = game.players.find(
     (player) => player.indexPlayer !== params.indexPlayer
   )!;
   const attacker: Player = game.players.find(
     (player) => player.indexPlayer === params.indexPlayer
   )!;
+  if (
+    game.turn !== params.indexPlayer ||
+    Array.from(attacker.shotCells.keys()).find((key) =>
+      key.includes(`${params.x}${params.y}`)
+    )
+  ) {
+    return;
+  }
 
   const shipWithSuchCell: Ship | undefined = enemy.ships.find((ship) =>
     ship.occupiedCells.find(
@@ -36,12 +44,29 @@ export function attack(params: attackInterfaceReq): void {
     )
   );
 
-  function sendToPlayers(data: attackInterfaceRes) {
+  function allEnemyShipsDestroyed(enemy: Player): boolean {
+    function shipIsDestroyed(ship: Ship): boolean {
+      for (let i = 0; i < ship.length; i++) {
+        if (!ship.occupiedCells[i].damaged) {
+          return false;
+        }
+      }
+      return true;
+    }
+    for (let i = 0; i < enemy.ships.length; i++) {
+      if (!shipIsDestroyed(enemy.ships[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function sendToPlayers(params: { data: object; type: messageTypes }) {
     game?.players.forEach((player) =>
       sendResponse({
         ws: player.ws,
-        type: messageTypes.ATTACK,
-        data: data,
+        type: params.type,
+        data: params.data,
       })
     );
   }
@@ -72,7 +97,7 @@ export function attack(params: attackInterfaceReq): void {
         position: occupiedPosition,
         currentPlayer: attacker.indexPlayer,
       };
-      sendToPlayers(responseOccupied);
+      sendToPlayers({ data: responseOccupied, type: messageTypes.ATTACK });
       attacker.shotCells.set(positionToString(occupiedPosition), gotCellStatus);
     }
 
@@ -88,9 +113,22 @@ export function attack(params: attackInterfaceReq): void {
         position: position,
         currentPlayer: attacker.indexPlayer,
       };
-      sendToPlayers(responseAdjacent);
+      sendToPlayers({ data: responseAdjacent, type: messageTypes.ATTACK });
       attacker.shotCells.set(positionToString(position), status);
-      //console.log(attacker.shotCells.entries());
+    }
+
+    ////SEND FINISH
+    if (allEnemyShipsDestroyed(enemy)) {
+      const data: finishInterface = {
+        winPlayer: attacker.indexPlayer,
+      };
+      //if not a bot
+      if (attacker.indexPlayer >= 0) {
+        users.find((user) => user.index === attacker.indexPlayer)!.wins++;
+      }
+      sendToPlayers({ type: messageTypes.FINISH, data: data });
+      updateWinners();
+      return;
     }
   } else {
     const position: positionInterface = {
@@ -103,127 +141,26 @@ export function attack(params: attackInterfaceReq): void {
       currentPlayer: attacker.indexPlayer,
     };
 
-    sendToPlayers(response);
+    sendToPlayers({ data: response, type: messageTypes.ATTACK });
     attacker.shotCells.set(positionToString(position), gotCellStatus);
-    //console.log(attacker.shotCells.entries());
+
+    for (let i = 0; i < enemy.ships.length; i++) {
+      if (enemy.ships[i].occupiedCells) {
+      }
+    }
 
     if (gotCellStatus === cellStatus.miss) {
-      const changedTurn = game.turn === 0 ? 1 : 0;
       game.players.forEach((player) =>
         setTurn({
           ws: player.ws,
           gameId: game.gameId,
-          turn: changedTurn,
+          turn: enemy.indexPlayer,
         })
       );
     }
   }
-}
-
-export function getAdjacentCells(params: { ship: Ship }): Cell[] {
-  const vertical = params.ship.direction;
-  const adjacentCells: Cell[] = [];
-  function calculatePositionOfAdjacentCell(params: {
-    side: direction;
-    position: positionInterface;
-  }): positionInterface {
-    let position: positionInterface = Object.assign({}, params.position);
-    switch (params.side) {
-      case direction.up: {
-        position.y++;
-        break;
-      }
-      case direction.down: {
-        position.y--;
-        break;
-      }
-      case direction.left: {
-        position.x--;
-        break;
-      }
-      case direction.right: {
-        position.x++;
-        break;
-      }
-    }
-    return position;
+  ///if bot
+  if (game.turn < 0 && !allEnemyShipsDestroyed(enemy)) {
+    randomAttack({ gameId: game.gameId, indexPlayer: game.turn });
   }
-
-  function addAdjacentCell(params: {
-    side: direction;
-    position: positionInterface;
-  }) {
-    const position = calculatePositionOfAdjacentCell(params);
-
-    function validatPosition(position: positionInterface): boolean {
-      return !(
-        position.x < 0 ||
-        position.x > 9 ||
-        position.y < 0 ||
-        position.y > 9
-      );
-    }
-
-    if (validatPosition(position)) {
-      adjacentCells.push(
-        new Cell({
-          position: position,
-          damaged: false,
-        })
-      );
-    }
-  }
-
-  function fillAdjacentCellsArr(position: positionInterface): void {
-    addAdjacentCell({
-      side: vertical ? direction.right : direction.down,
-      position: position,
-    });
-    addAdjacentCell({
-      side: vertical ? direction.left : direction.up,
-      position: position,
-    });
-  }
-
-  function addAdditionalAdjacentCells(data: {
-    side: direction;
-    occupiedPosition: positionInterface;
-  }): void {
-    let position: positionInterface = Object.assign({}, data.occupiedPosition);
-    addAdjacentCell({ side: data.side, position: position });
-    fillAdjacentCellsArr(
-      calculatePositionOfAdjacentCell({ side: data.side, position: position })
-    );
-  }
-  const beforeFirst: direction = vertical ? direction.down : direction.left;
-  const afterLast: direction = vertical ? direction.up : direction.right;
-
-  for (let i = 0; i < params.ship.length; i++) {
-    const cellIsfirstShipCell: boolean = i === 0;
-    const cellIsLastShipCell: boolean = i === params.ship.length - 1;
-    const occupiedPosition: positionInterface =
-      params.ship.occupiedCells[i].position;
-
-    fillAdjacentCellsArr(occupiedPosition);
-    if (cellIsfirstShipCell) {
-      addAdditionalAdjacentCells({
-        side: beforeFirst,
-        occupiedPosition: occupiedPosition,
-      });
-    }
-    if (cellIsLastShipCell) {
-      addAdditionalAdjacentCells({
-        side: afterLast,
-        occupiedPosition: occupiedPosition,
-      });
-    }
-  }
-  return adjacentCells;
-}
-
-export enum direction {
-  up,
-  down,
-  left,
-  right,
 }

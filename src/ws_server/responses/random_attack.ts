@@ -1,7 +1,20 @@
 import { Player } from "../classes/player.js";
 import { games } from "../db.js";
-import { positionInterface, randomAttackInterfaceReq } from "../interfaces.js";
-import { attack } from "./attack.js";
+import {
+  cellStatus,
+  positionInterface,
+  randomAttackInterfaceReq,
+} from "../interfaces.js";
+import { attack, positionToString } from "./attack.js";
+
+export function stringsToPositions(strings: string[]): positionInterface[] {
+  return strings
+    .filter((string) => !string.includes("-"))
+    .map((string) => ({
+      x: Number(string.charAt(0)),
+      y: Number(string.charAt(1)),
+    }));
+}
 
 export function randomAttack(params: randomAttackInterfaceReq): void {
   const game = games.find((game) => game.gameId === params.gameId);
@@ -11,14 +24,40 @@ export function randomAttack(params: randomAttackInterfaceReq): void {
     (player) => player.indexPlayer === params.indexPlayer
   )!;
 
-  const allShotsMade: positionInterface[] = Array.from<string>(
-    attacker.shotCells.keys()
-  )
-    .filter((shot) => !shot.includes("-"))
-    .map((string) => ({
-      x: Number(string.charAt(0)),
-      y: Number(string.charAt(1)),
-    }));
+  const allShotsMade: positionInterface[] = stringsToPositions(
+    Array.from<string>(attacker.shotCells.keys())
+  );
+
+  const enemyDamagedPositions: positionInterface[] = stringsToPositions(
+    Array.from<string>(attacker.shotCells.keys())
+  );
+
+  const totalCellNumber: number = 100;
+
+  if (enemyDamagedPositions.length > 0) {
+    const positionsFarFromTheDamaged: string[] = [];
+
+    if (enemyDamagedPositions.length < 2) {
+      const position = enemyDamagedPositions[0];
+
+      const targetPositions: string[] = [
+        { x: position.x, y: position.y + 1 },
+        { x: position.x, y: position.y - 1 },
+        { x: position.x + 1, y: position.y },
+        { x: position.x - 1, y: position.y },
+      ].map((position) => positionToString(position));
+
+      for (let x = 0; x < 10; x++) {
+        for (let y = 0; y < 10; y++) {
+          const stringPosition = positionToString({ x, y });
+          if (!targetPositions.find((string) => string === stringPosition)) {
+            positionsFarFromTheDamaged.push(stringPosition);
+          }
+        }
+      }
+    } else {
+    }
+  }
 
   const randomPosition = generateRandomPosition({
     excludedPositions: allShotsMade,
@@ -33,6 +72,7 @@ export function generateRandomPosition(params: {
 }): positionInterface {
   // console.log(params.excludedPositions);
   const cellsInRow: number = 10;
+
   let x: number = Math.floor(Math.random() * cellsInRow);
   //  console.log(`first x: ${x}`);
   let y: number = 0;

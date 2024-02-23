@@ -8,7 +8,7 @@ import { setTurn } from "./turn.js";
 export function startGame(params: { player: Player; game: Game }): void {
   const response: startGameInterface = {
     ships: params.player.ships,
-    currentPlayerIndex: params.player.indexPlayer,
+    currentPlayerIndex: 3,
   };
   sendResponse({
     ws: params.player.ws,

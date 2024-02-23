@@ -19,7 +19,6 @@ export function updateRoom(params: { ws: WebSocket }): void {
       })),
     }));
   }
-  console.log(response);
   sendResponse({
     ws: params.ws,
     type: messageTypes.UPDATE_ROOM,
