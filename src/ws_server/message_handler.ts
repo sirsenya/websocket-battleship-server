@@ -17,6 +17,11 @@ import { register } from "./responses/register.js";
 import { updateWinners } from "./responses/update_winners.js";
 import { randomAttack } from "./responses/random_attack.js";
 import { Ship } from "./classes/ship.js";
+import { Player } from "./classes/player.js";
+import { Room } from "./classes/room.js";
+import { updateRoomGlobally } from "./responses/update_room.js";
+import { Game } from "./classes/game.js";
+import { sendResponse } from "./responses/send_response.js";
 
 export function messageHandler(ws: WebSocket, req: IncomingMessage) {
   ws.onmessage = (msg: MessageEvent) => {
@@ -32,6 +37,7 @@ export function messageHandler(ws: WebSocket, req: IncomingMessage) {
         return userWithThisWs;
       }
     }
+
     switch (type) {
       case messageTypes.REG: {
         register({ message: message, ws: ws });
@@ -62,6 +68,7 @@ export function messageHandler(ws: WebSocket, req: IncomingMessage) {
       }
       case messageTypes.ATTACK: {
         const attackReq: attackInterfaceReq = JSON.parse(message.data);
+
         attack(attackReq);
         break;
       }
@@ -75,20 +82,97 @@ export function messageHandler(ws: WebSocket, req: IncomingMessage) {
       case messageTypes.SINGLE_PLAY: {
         const gameId = games.length;
         const userId: number = users.find((user) => user.ws === ws)!.index;
-        const botWS = ws;
+
+        const player = new Player({
+          indexPlayer: userId,
+          ws: ws,
+          ships: [],
+          gameId: gameId,
+        });
+        const botShips: Ship[] = addRandomShips();
+        const bot = new Player({
+          indexPlayer: (userId + 1) * -1,
+          ws: ws,
+          gameId: gameId,
+          ships: botShips,
+        });
+        const playersRoom: number | undefined = rooms.findIndex((room) =>
+          room?.roomUsers?.map((user) => user.index).includes(userId)
+        );
+        // console.log(playersRoom);
+        if (playersRoom || playersRoom === 0) {
+          delete rooms[playersRoom];
+          updateRoomGlobally();
+        }
         createGame({
           ws: ws,
           idPlayer: users.find((user) => user.ws === ws)!.index,
           gameId: gameId,
+          players: [bot, player],
         });
         addShips({
-          ships: addRandomShips(),
-          ws: botWS,
-          indexPlayer: (userId + 1) * -1,
+          ships: botShips,
+          ws: ws,
+          indexPlayer: bot.indexPlayer,
           gameId: gameId,
         });
         break;
       }
+    }
+    //console.log(`users: ${users.map((user) => user.index)}`);
+  };
+  ws.onclose = () => {
+    // console.log(`users: ${users.map((user) => user.index)}`);
+    const leftUser: User | undefined = users.find((user) => user.ws === ws);
+
+    if (leftUser) {
+      const roomWithLeftUser: Room | undefined = rooms.find((room) =>
+        room?.roomUsers.map((user) => user.index).includes(leftUser.index)
+      );
+      const gameWithLeftUser: Game | undefined = games.find((game) =>
+        game?.players
+          .map((player) => player.indexPlayer)
+          .includes(leftUser.index)
+      );
+      // console.log(games.length);
+      // console.log(gameWithLeftUser);
+
+      if (roomWithLeftUser) {
+        delete rooms[roomWithLeftUser.roomId];
+        updateRoomGlobally();
+      }
+
+      if (gameWithLeftUser) {
+        //if not a bot
+        //  console.log(`gamewith left user id ${gameWithLeftUser.gameId}`);
+        //  console.log(
+        //   `gamewith left user players id ${gameWithLeftUser.players.map(
+        //     (player) => player.indexPlayer
+        //   )}`
+        // );
+        if (
+          !gameWithLeftUser.players.find((player) => player.indexPlayer < 0)
+        ) {
+          const winner: Player = gameWithLeftUser.players.find(
+            (player) => player.ws !== ws
+          )!;
+          sendResponse({
+            ws: winner.ws,
+            type: messageTypes.FINISH,
+            data: {
+              winPlayer: winner.indexPlayer,
+            },
+          });
+          users.find((user) => user.index === winner.indexPlayer)!.wins++;
+          updateWinners();
+          delete games[gameWithLeftUser.gameId];
+        }
+      }
+
+      leftUser.online = false;
+      // console.log(
+      //   `user ${leftUser?.name} left. Games with him are closed, rooms are deleted`
+      // );
     }
   };
 }

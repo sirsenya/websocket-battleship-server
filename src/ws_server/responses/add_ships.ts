@@ -13,17 +13,21 @@ export function addShips(params: {
   gameId: number;
   ships: Ship[];
 }): void {
-  const player = new Player({
-    indexPlayer: params.indexPlayer,
-    ships: params.ships.map((ship) => new Ship({ ...ship })), // addRandomShips(),
-    gameId: params.gameId,
-    ws: params.ws,
-  });
   const game = games[params.gameId];
   const players: Player[] = game.players;
-  players.push(player);
-  if (players.length === 2) {
-    const turn: number = users[0].index;
+  const player: Player | undefined = players.find(
+    (player) => player?.indexPlayer === params.indexPlayer
+  );
+  if (!player) {
+    throw Error("player not found");
+  }
+  player.ships = params.ships;
+
+  if (players[0].ships.length === 10 && 10 === players[1].ships.length) {
+    const turn: number =
+      players[0].indexPlayer < 0
+        ? players[1].indexPlayer
+        : players[0].indexPlayer;
     game.turn = turn;
     players.forEach((player) => startGame({ player: player, game: game }));
   }
@@ -75,28 +79,11 @@ export function addRandomShips(): Ship[] {
     }
     const unfitSizePositions: positionInterface[] = getUnfitSizePositions();
 
-    // console.log(
-    //   `unfitSizePositions ${
-    //     unfitSizePositions.map((position) => positionToString(position)).length
-    //   }`
-    // );
-    // console.log(
-    //   `occupiedPositions ${
-    //     occupiedPositions.map((position) => positionToString(position)).length
-    //   }`
-    // );
-    // console.log(
-    //   `adjacentPositions ${
-    //     adjacentPositions.map((position) => positionToString(position)).length
-    //   }`
-    // );
-
     const excludedPositionsStrings: string[] = [
       ...unfitSizePositions,
       ...occupiedPositions,
       ...adjacentPositions,
     ].map((position) => positionToString(position));
-    // console.log(`excluded: ${excludedPositionsStrings}`);
 
     const uniqueExcludedPositionsString: string[] = Array.from(
       new Set(excludedPositionsStrings).keys()
@@ -121,7 +108,6 @@ export function addRandomShips(): Ship[] {
       }).map((cell) => positionToString(cell.position));
 
       for (let i = 0; i < occupiedPositions.length; i++) {
-        // console.log(`occupiedPositions.length = ${occupiedPositions.length}`);
         if (uniqueExcludedPositionsString.includes(occupiedPositions[i])) {
           hash.push(position);
           return validateRandomPosition({ hash: hash });

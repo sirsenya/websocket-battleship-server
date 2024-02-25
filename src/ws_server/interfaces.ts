@@ -1,4 +1,4 @@
-import { Ship } from "./classes/ship";
+import { Ship, shipType } from "./classes/ship";
 import { User } from "./classes/user";
 import { addUserToRoom } from "./responses/add_user_to_room";
 
@@ -42,6 +42,13 @@ export interface addShipsInterface {
   ships: Ship[];
   /* id of the player in the current game session */
   indexPlayer: number;
+}
+
+export interface shipInterface {
+  position: positionInterface;
+  direction: boolean;
+  length: number;
+  type: shipType;
 }
 
 export interface positionInterface {

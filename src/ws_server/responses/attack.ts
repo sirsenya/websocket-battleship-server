@@ -11,7 +11,7 @@ import {
 } from "../interfaces.js";
 import { messageTypes } from "../message_handler.js";
 import { getAdjacentCells } from "./get_adjacent_cells.js";
-import { randomAttack } from "./random_attack.js";
+import { randomAttack, stringsToPositions } from "./random_attack.js";
 import { sendResponse } from "./send_response.js";
 import { setTurn } from "./turn.js";
 import { updateWinners } from "./update_winners.js";
@@ -21,18 +21,20 @@ export function positionToString(position: positionInterface): string {
 }
 
 export function attack(params: attackInterfaceReq): void {
-  const game = games.find((game) => game.gameId === params.gameId);
+  const game = games.find((game) => game?.gameId === params.gameId);
   if (!game) throw Error("game not found from attack");
   const enemy: Player = game.players.find(
-    (player) => player.indexPlayer !== params.indexPlayer
+    (player) => player?.indexPlayer !== params.indexPlayer
   )!;
   const attacker: Player = game.players.find(
-    (player) => player.indexPlayer === params.indexPlayer
+    (player) => player?.indexPlayer === params.indexPlayer
   )!;
+
   if (
     game.turn !== params.indexPlayer ||
-    Array.from(attacker.shotCells.keys()).find((key) =>
-      key.includes(`${params.x}${params.y}`)
+    Array.from(attacker.shotCells.keys()).find(
+      (key) =>
+        key.includes(`${params.x}${params.y}`) || allEnemyShipsDestroyed(enemy)
     )
   ) {
     return;

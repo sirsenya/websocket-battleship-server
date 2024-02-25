@@ -5,10 +5,8 @@
     "main": "index.ts",
     "type": "module",
     "scripts": {
-        "start": "node ./build/index.js",
-        "start:dev": "nodemon --exec node --loader ts-node/esm ./index.ts",
-        "start:ws": "nodemon --exec node --loader ts-node/esm ./src/http_server/ws_server.ts",
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "start": "tsc && node ./build/index.js",
+        "start:dev": "nodemon --exec node --loader ts-node/esm ./index.ts"
     },
     "author": "Andrei Auchynnikau",
     "keywords": [],

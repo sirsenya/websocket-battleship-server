@@ -7,7 +7,7 @@ import { sendResponse } from "./send_response.js";
 
 export function updateRoom(params: { ws: WebSocket }): void {
   const roomsWithOneUser: Room[] = rooms.filter(
-    (room) => room.roomUsers.length == 1
+    (room) => room.roomUsers?.length == 1
   );
   let response: roomInterface[] = [];
   if (roomsWithOneUser) {

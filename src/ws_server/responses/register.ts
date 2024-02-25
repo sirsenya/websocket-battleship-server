@@ -10,24 +10,41 @@ export function register(params: {
   ws: WebSocket;
 }): void {
   const data: regInterfaceReq = JSON.parse(params.message.data);
+  const userIndex = users.length;
 
   const regData: regInterfaceRes = {
-    ...data,
+    name: data.name,
+    index: userIndex,
     error: true,
-    errorText: "name is occupied",
+    errorText: "wrong password",
   };
 
-  if (!users.find((user) => user.name === data.name)) {
+  const userByName: User | undefined = users.find(
+    (user) => user.name === data.name
+  );
+
+  if (!userByName) {
     (regData.error = false), (regData.errorText = "no error");
     addUserToDB({
       user: new User({
         name: data.name,
-        index: users.length,
+        index: userIndex,
         wins: 0,
         ws: params.ws,
+        password: data.password,
+        online: true,
       }),
       ws: params.ws,
     });
+  } else {
+    if (userByName.password === data.password) {
+      if (userByName.online) {
+        regData.errorText = "user with this name is already online";
+      } else {
+        (regData.error = false), (regData.errorText = "no error");
+        userByName.ws = params.ws;
+      }
+    }
   }
 
   sendResponse({ ws: params.ws, type: messageTypes.REG, data: regData });
@@ -43,5 +60,5 @@ interface regInterfaceRes {
 
 interface regInterfaceReq {
   name: string;
-  index: number;
+  password: string;
 }

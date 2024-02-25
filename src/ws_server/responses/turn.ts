@@ -11,7 +11,7 @@ export function setTurn(params: {
   turn: number;
 }): void {
   const currentGame: Game | undefined = games.find(
-    (game) => game.gameId === params.gameId
+    (game) => game?.gameId === params.gameId
   );
   if (!currentGame) {
     throw Error("game not found");
@@ -25,11 +25,4 @@ export function setTurn(params: {
     type: messageTypes.TURN,
     data: response,
   });
-  console.log(`currentGame.turn: ${currentGame.turn}`);
-  console.log(
-    `currentGame.playersId: ${currentGame.players.map(
-      (player) => player.indexPlayer
-    )}`
-  );
-  //console.log(`currentGame.turn: ${currentGame.turn}`);
 }
