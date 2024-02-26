@@ -1,3 +1,4 @@
+import { Game } from "../classes/game.js";
 import { Player } from "../classes/player.js";
 import { User } from "../classes/user.js";
 import { games, rooms } from "../db.js";
@@ -46,11 +47,12 @@ export function addUserToRoom(params: {
     delete rooms[joinedUserRoom];
   }
   updateRoomGlobally();
+  const gameId: number = games.length;
   room.roomUsers.forEach((u) =>
     createGame({
       ws: u.ws,
       idPlayer: u.index,
-      gameId: games.length,
+      gameId: gameId,
       players: players,
     })
   );

@@ -144,12 +144,6 @@ export function messageHandler(ws: WebSocket, req: IncomingMessage) {
 
       if (gameWithLeftUser) {
         //if not a bot
-        //  console.log(`gamewith left user id ${gameWithLeftUser.gameId}`);
-        //  console.log(
-        //   `gamewith left user players id ${gameWithLeftUser.players.map(
-        //     (player) => player.indexPlayer
-        //   )}`
-        // );
         if (
           !gameWithLeftUser.players.find((player) => player.indexPlayer < 0)
         ) {
@@ -170,9 +164,9 @@ export function messageHandler(ws: WebSocket, req: IncomingMessage) {
       }
 
       leftUser.online = false;
-      // console.log(
-      //   `user ${leftUser?.name} left. Games with him are closed, rooms are deleted`
-      // );
+      console.log(
+        `user ${leftUser?.name} left. Games with him are closed, rooms are deleted`
+      );
     }
   };
 }

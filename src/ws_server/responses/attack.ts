@@ -11,7 +11,7 @@ import {
 } from "../interfaces.js";
 import { messageTypes } from "../message_handler.js";
 import { getAdjacentCells } from "./get_adjacent_cells.js";
-import { randomAttack, stringsToPositions } from "./random_attack.js";
+import { randomAttack } from "./random_attack.js";
 import { sendResponse } from "./send_response.js";
 import { setTurn } from "./turn.js";
 import { updateWinners } from "./update_winners.js";
@@ -89,8 +89,6 @@ export function attack(params: attackInterfaceReq): void {
   const gotCellStatus: cellStatus = getCellStatus();
 
   if (gotCellStatus === cellStatus.killed) {
-    const vertical: boolean = shipWithSuchCell!.direction;
-
     for (let i = 0; i < shipWithSuchCell!.length; i++) {
       const occupiedPosition: positionInterface =
         shipWithSuchCell!.occupiedCells[i].position;
@@ -145,11 +143,6 @@ export function attack(params: attackInterfaceReq): void {
 
     sendToPlayers({ data: response, type: messageTypes.ATTACK });
     attacker.shotCells.set(positionToString(position), gotCellStatus);
-
-    for (let i = 0; i < enemy.ships.length; i++) {
-      if (enemy.ships[i].occupiedCells) {
-      }
-    }
 
     if (gotCellStatus === cellStatus.miss) {
       game.players.forEach((player) =>

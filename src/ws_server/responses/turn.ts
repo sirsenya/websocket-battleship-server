@@ -2,7 +2,6 @@ import { Game } from "../classes/game.js";
 import { games } from "../db.js";
 import { turnInterface } from "../interfaces.js";
 import { messageTypes } from "../message_handler.js";
-import { randomAttack } from "./random_attack.js";
 import { sendResponse } from "./send_response.js";
 
 export function setTurn(params: {
@@ -19,7 +18,10 @@ export function setTurn(params: {
   const response: turnInterface = {
     currentPlayer: params.turn,
   };
+
   currentGame.turn = params.turn;
+
+  console.log(`changed TUrn: ${currentGame.turn}`);
   sendResponse({
     ws: params.ws,
     type: messageTypes.TURN,
